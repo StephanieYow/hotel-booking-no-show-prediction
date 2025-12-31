@@ -2,7 +2,7 @@
 """
 Stephanie Yow
 Personal Practice
-Description: Hotel Booking No-Show Prediction (Rebalance.py)
+Description: Hotel Booking No-Show Prediction (Resample.py)
 """
 
 import pandas as pd

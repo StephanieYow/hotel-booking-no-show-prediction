@@ -2,7 +2,7 @@
 """
 Stephanie Yow
 Personal Practice
-Description: Hotel Booking No-Show Prediction (Transformers.py)
+Description: Hotel Booking No-Show Prediction (Preprocess.py)
 """
 
 import pandas as pd
@@ -23,6 +23,9 @@ month_dictionary = {
     }
 
 def drop_empty_rows(X):
+    '''
+    Omit rows with null values in no_show column
+    '''
     X = X[~X['no_show'].isnull()]
     return X
 
@@ -121,7 +124,7 @@ def price(X):
     currency prefixes and converting USD to SGD, and impute nulls with
     median price
     '''
-    X['price'].fillna('0', inplace = True)
+    X['price'] = X['price'].fillna('0')
     
     X['price'] = X['price'].map(lambda x: float(x[5:]) \
                                 if 'SGD$' in str(x) \

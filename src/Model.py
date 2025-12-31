@@ -21,7 +21,7 @@ connect = sqlite3.connect('data/noshow.db')
 df = pd.read_sql_query('SELECT * FROM noshow;', connect)
 connect.close()
 
-# preproceess columns
+# preprocess columns
 df = Preprocess.drop_empty_rows(df)
 df = Preprocess.arrival_month(df)
 df = Preprocess.booking_month(df)
@@ -43,27 +43,29 @@ df_final = df_downsample.sample(frac = 1,
                                 ignore_index = True)
 
 # set features
-features = df_final.drop(columns = ['no_show'])
-# feature Z-score normalisation
-scaler = StandardScaler()
-scaler.fit(features)
-scaled_features = scaler.fit_transform(features)
+X = df_final.drop(columns = ['no_show'])
 
 # set target
 y = df_final['no_show']
 
 # split dataset into training and test data
-x_train, x_test, y_train, y_test = train_test_split(scaled_features, y, 
+X_train, X_test, y_train, y_test = train_test_split(X, y, 
                                                     test_size = 0.2, 
                                                     random_state = 42)
 
-# fit model
-model = LogisticRegression(solver = 'liblinear')
-model.fit(x_train, y_train)
+# perform standard scaling
+scaler = StandardScaler()
+scaler.fit(X_train)
+X_train = scaler.transform(X_train)
+X_test = scaler.transform(X_test)
+
+# fit model 
+model = LogisticRegression(random_state = 42)
+model.fit(X_train, y_train) 
 
 # predict target values
-predictions = model.predict(x_test)
-predict_proba = model.predict_proba(x_test)
+predictions = model.predict(X_test)
+predict_proba = model.predict_proba(X_test)
 
 # evaluate predictions
 accuracy = accuracy_score(y_test, predictions)
