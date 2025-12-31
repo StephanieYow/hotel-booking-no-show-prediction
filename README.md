@@ -54,7 +54,7 @@ For example:
 |--|--|
 | arrival_month | Standardise letter case |
 | checkout_day | Transform negative values to positive |
-| price | Remove currency prefixes, cast string values to float and impute nulls with median price |
+| price | Remove currency prefixes, convert USD values to SGD and impute nulls with median price |
 
 Comparisons were then made between customers that showed up and customers that no-showed in order to spot characteristics more prevalent for the latter. Eventually, (hotel) branch, country (of origin), arrival_month and booking_month were found to have distinguishing characteristics.
 
