@@ -46,8 +46,17 @@ There are 119,391 records and 15 columns.
 
 ## Methodology
 
-### Exploratory Data Analysis
-From exploratory data analysis, hotel branch, country of origin, arrival month and booking month were found to influence no-shows. 2 other influencing factors, nights stayed and price per night were not as straightforward, and had to be derived from existing columns relating to arrival/checkout and total booking price respectively.
+### Preliminary Preprocessing and Exploratory Data Analysis
+As seen from the preceding section, data had to first be preprocessed for null values, spelling, letter casing and formatting inconsistencies, and anomalous values, before conducting exploratory data analysis.
+
+For example:
+| Column | Treatment |
+|--|--|
+| arrival_month | Standardise letter case |
+| checkout_day | Transform negative values to positive |
+| price | Remove currency prefixes, cast string values to float and impute nulls with median price |
+
+Comparisons were then made between customers that showed up and customers that no-showed in order to spot characteristics more prevalent for the latter. Eventually, (hotel) branch, country (of origin), arrival_month and booking_month were found to have distinguishing characteristics.
 
 #### branch
 66.4% of all bookings was for the Changi branch. When bookings were isolated to no-shows, the percentage jumped to 74.9%.
@@ -61,38 +70,43 @@ Most no-shows were observed to arrive between April and August.
 #### booking_month
 Most no-shows were observed to be from bookings made in June and September.
 
+It made sense within the context of hotel bookings to create and analyse two new columns, nights_stayed and price_per_night, from existing columns. In the real world, bookings are usually based on the number of nights stayed, and customers are charged per night.
+
 #### nights_stayed
-Due to the absence of a date column, nights_stayed is inferred. For example, if months_stayed is 1.0, and arrival_month is January, then nights_stayed = checkout_day - arrival_day + 31 days. Generally, the longer the stay, the less no-shows were observed. Longer stays may signal stronger intent to show up.
+nights_stayed was inferred from arrival_month, months_stayed, arrival_day and checkout_day. For example, if months_stayed was 1.0, and arrival_month was January, then nights_stayed = checkout_day - arrival_day + 31 days (number of days in January). Generally, the longer the stay, the less no-shows were observed.
+
+Computing nights_stayed involved some intermediate steps.
+
+| Step | Column | Treatment |
+|--|--|--|
+| 1 | arrival_month_no | New numerical column corresponding to arrival_month |
+| 2 | checkout_month_no | New numerical column corresponding to checkout_month |
+| 3 | months_stayed | New numerical column derived from arrival_month_no subtracted from checkout_month_no that represents stay duration in months |
+| 4 | nights_stayed | New numerical column inferred from arrival_month, months_stayed, arrival_day and checkout_day that represents stay duration in nights |
 
 #### price_per_night
-price_per_night is how hotels charge in the real world and is a fairer indication of intent to show up. For example, a customer with an SGD 1,000 booking for 5 nights is different from a customer with an SGD 1,000 booking for 2 nights. Customers whose bookings were SGD 750-1000 in total or SGD 375-500 and SGD 875-1000 per night had higher chance of not showing up.
+price_per_night was derived from price divided by nights_stayed and represents an average. It is a fairer indication of customer intent. For example, a customer with an SGD 1,000 booking for 5 nights is different from a customer with an SGD 1,000 booking for 2 nights. Customers whose booking's price per night fell between SGD 375-500 and SGD 875-1000 had higher chance of not showing up.
 
-### Preprocessing
-Here is an overview of treatments to existing and new columns. 
+### Categorical Data Preprocessing
+While categorical values were helpful to exploratory data visualisations, they were transformed into numerical values for purposes of scaling and modelling.
 
-| Column | Treatment | Dtype |
-|--|--|--|
-| branch | Transform categorical string values to float | float64 |
-| arrival_month | Standardise letter case | object |
-| checkout_day | Transform any negative float values to positive | float64 |
-| country | One hot encoding | float64 |
-| price | Remove currency prefixes, cast string values to float and impute nulls with median price | float64 |
-| arrival_month_no | New numbered column corresponding to arrival_month | float64 |
-| booking_month_no | New numbered column corresponding to booking_month | float64 |
-| checkout_month_no | New numbered column corresponding to checkout_month | float64 |
-| months_stayed | New column derived from arrival_month_no subtracted from checkout_month_no that represents stay duration in months | float64 |
-| nights_stayed | New column inferred from arrival_month, months_stayed, arrival_day and checkout_day that represents stay duration in nights | float64 | 
-| price_per_night | New column derived from price divided by nights_stayed that represents average price per night | float64 |
-
-Only branch, encoded country, arrival_month_no, booking_month_no, nights_stayed and price_per_night columns are retained at the end of preprocessing.
+| Column | Treatment |
+|--|--|
+| branch | Transform categorical values to binary values |
+| country | Apply one-hot encoding instead of label encoding to avoid introducing ordinality between categories |
+| booking_month_no | New numerical column corresponding to booking_month |
 
 ### Resampling
-The data is moderately imbalanced in favour of class 0 (63% of records). If the data is not rebalanced, the resulting model may be better at predicting the majority class than minority class.
+Data was moderately imbalanced in favour of class 0 (63% of records). If the data was not rebalanced, the resulting model may be better at predicting the majority class than minority class.
 
-> Solution: Using resampling without replacement, downsample the majority class to yield 44,224 samples to match the number of minority class records, and then upweight the majority class by creating a new column of weights. Newly balanced dataset should have 88,448 records in total.
+> Solution: Using resampling without replacement, the majority class was downsampled to yield 44,224 samples to match the number of minority class records, and then the majority class was upweighted by introducing a new column of weights. Newly rebalanced dataset had 88,448 records in total.
 
-### Feature and Target Variables
-After declaring feature and target variables, the data undergoes a train-test split with 0.2 test size. 
+### Features and Target
+
+- Features: branch, arrival_month_no, booking_month_no, nights_stayed, price_per_night, one-hot encoded country columns
+- Target: no_show
+
+After defining feature matrix X and target vector y, the dataset underwent a train-test split with 0.2 test size. 
 > X_train.shape: (70758, 13)
 > 
 > y_train.shape: (70758,)
@@ -102,12 +116,12 @@ After declaring feature and target variables, the data undergoes a train-test sp
 > y_test.shape: (17690,)
 
 ### Feature Scaling
-Features contain varying scales from 10s to 1000s, and undergo Z-score normalisation to standardise their range. Statistical properties (mean and standard deviation) of X_train are used to scale both X_train and X_test.
+Features contained varying scales from 10s to 1000s, and underwent Z-score normalisation to standardise their range. Statistical properties (mean and standard deviation) of X_train were used to scale both X_train and X_test.
 
 ### Modelling
 Prediction of no-shows can be modelled as a probability problem (how likely would a customer no-show?) where the label follows a binomial distribution with only two outcomes, failure ('show up') or success ('no-show'). With this in mind, logistic regression is an appropriate model choice. Logistic regression, as its name implies, first performs regression, and then compresses regression outputs into probabilities using the logistic function. The model learns the best regression feature weights that maximise P(y = 1) whenever the true label y is 1 ('no-show') and maximise 1 - P(y = 1) whenever the true label y is 0 ('show up').
 
-After the model is fitted with X_train and y_train, predictions are made on X_test. Predictions are evaluated against y_test on a set of metrics: accuracy score, F1 score and log loss, and output to `evaluation_report.txt`. 
+After the model was fitted with X_train and y_train, predictions were made on X_test. Predictions were evaluated against y_test on a set of metrics: accuracy score, F1 score and log loss, and output to `evaluation_report.txt`. 
 
 |Metric |Result|
 |--|--|
