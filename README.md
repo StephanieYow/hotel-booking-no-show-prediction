@@ -45,10 +45,30 @@ There are 119,391 records and 15 columns.
 | num_children | 119930 | float64 | 0.0
 
 ## Methodology
-Prediction of no-shows is a binary classification problem. There are only two possible classes, 0 (showed up) or 1 (no-show). From exploratory data analysis, hotel branch, booking month, arrival month, duration of stay, country of origin and average price per night were found to be reasonable predictors of no-shows.
+
+### Exploratory Data Analysis
+From exploratory data analysis, hotel branch, country of origin, arrival month and booking month were found to influence no-shows. 2 other influencing factors, nights stayed and price per night were not as straightforward, and had to be derived from existing columns relating to arrival/checkout and total booking price respectively.
+
+#### branch
+66.4% of all bookings was for the Changi branch. When bookings were isolated to no-shows, the percentage jumped to 74.9%.
+
+#### country
+40.7% of all bookings was from Chinese customers. When bookings were isolated to no-shows, the percentage jumped to 62.2%.
+
+#### arrival_month
+Most no-shows were observed to arrive between April and August.
+
+#### booking_month
+Most no-shows were observed to be from bookings made in June and September.
+
+#### nights_stayed
+Due to the absence of a date column, nights_stayed is inferred. For example, if months_stayed is 1.0, and arrival_month is January, then nights_stayed = checkout_day - arrival_day + 31 days. Generally, the longer the stay, the less no-shows were observed. Longer stays may signal stronger intent to show up.
+
+#### price_per_night
+price_per_night is how hotels charge in the real world and is a fairer indication of intent to show up. For example, a customer with an SGD 1,000 booking for 5 nights is different from a customer with an SGD 1,000 booking for 2 nights. Customers whose bookings were SGD 750-1000 in total or SGD 375-500 and SGD 875-1000 per night had higher chance of not showing up.
 
 ### Preprocessing
-Here is an overview of treatments to existing and new columns.
+Here is an overview of treatments to existing and new columns. 
 
 | Column | Treatment | Dtype |
 |--|--|--|
@@ -67,66 +87,30 @@ Here is an overview of treatments to existing and new columns.
 Only branch, encoded country, arrival_month_no, booking_month_no, nights_stayed and price_per_night columns are retained at the end of preprocessing.
 
 ### Resampling
-The data is imbalanced in favour of class 0 (63% of records). If the data is not rebalanced, the resulting model may be better at predicting the majority class than minority class.
+The data is moderately imbalanced in favour of class 0 (63% of records). If the data is not rebalanced, the resulting model may be better at predicting the majority class than minority class.
 
-> Solution: Downsample the majority class to yield 44,224 samples to match the number of minority class records, and then upweight the majority class by creating a new column of weights. Newly balanced dataset should have 88,448 records in total.
+> Solution: Using resampling without replacement, downsample the majority class to yield 44,224 samples to match the number of minority class records, and then upweight the majority class by creating a new column of weights. Newly balanced dataset should have 88,448 records in total.
 
-The data is randomly shuffled to minimise bias.
-
-### Standardisation
-The data contains varying scales and undergoes Z-score normalisation.
-
-### Modeling
-
+### Feature and Target Variables
 After declaring feature and target variables, the data undergoes a train-test split with 0.2 test size. 
-> x_train.shape: (70758, 13)
+> X_train.shape: (70758, 13)
 > 
-> y_train.shape: (70758, 1)
+> y_train.shape: (70758,)
 > 
-> x_test.shape: (17690, 13)
+> X_test.shape: (17690, 13)
 > 
-> y_test.shape: (17690, 1)
+> y_test.shape: (17690,)
 
-Prediction of no-shows can be treated as a probability problem that requires output of binary values. Logistic regression is an efficient mechanism for calculating probabilities and is selected as the model.
+### Feature Scaling
+Features contain varying scales from 10s to 1000s, and undergo Z-score normalisation to standardise their range. Statistical properties (mean and standard deviation) of X_train are used to scale both X_train and X_test.
 
-After the model is fitted with training data, predictions are made on test data. Results are evaluated on a set of metrics: accuracy score, F1 score and log loss, and output to `evaluation_report.txt`. 
+### Modelling
+Prediction of no-shows can be modelled as a probability problem (how likely would a customer no-show?) where the label follows a binomial distribution with only two outcomes, failure ('show up') or success ('no-show'). With this in mind, logistic regression is an appropriate model choice. Logistic regression, as its name implies, first performs regression, and then compresses regression outputs into probabilities using the logistic function. The model learns the best regression feature weights that maximise P(y = 1) whenever the true label y is 1 ('no-show') and maximise 1 - P(y = 1) whenever the true label y is 0 ('show up').
+
+After the model is fitted with X_train and y_train, predictions are made on X_test. Predictions are evaluated against y_test on a set of metrics: accuracy score, F1 score and log loss, and output to `evaluation_report.txt`. 
 
 |Metric |Result|
 |--|--|
 |Accuracy Score|1.0|
 |F1 Score|1.0|
-|Log Loss|0.00014|
-
-## Methodology Support
-Here are more explanations of selected features. Please refer to `eda.ipynb` for the full exploratory data analysis.
-
-### branch
-66.4% of all bookings was for the Changi branch. When bookings were isolated to no-shows, the percentage jumped to 74.9%.
-
-### country
-40.7% of all bookings was from Chinese customers. When bookings were isolated to no-shows, the percentage jumped to 62.2%.
-
-### arrival_month_no
-Most no-shows were observed to arrive between April and August based on arrival_month. arrival_month_no is a numerical representation of arrival_month in order to be used in the model.
-> Example:
-> 
-> January: 1.0
-> 
-> February: 2.0
-> 
-> March: 3.0
-> 
-> ...
-> 
-> November: 11.0
-> 
-> December: 12.0
-
-### booking_month_no
-Most no-shows were observed to be from bookings made in June and September based on booking_month. booking_month_no is a numerical representation of booking_month in order to used in the model.
-
-### nights_stayed
-Due to the absence of a date column in the raw data, nights_stayed is inferred. For example, if months_stayed is 1.0, and arrival_month is January, then nights_stayed = checkout_day - arrival_day + 31 days. Generally, the longer the stay, the less no-shows were observed. Longer stays may signal stronger intent to show up.
-
-### price_per_night
-price_per_night is closer to how hotels charge in the real world and is a fairer indication of intent to show up. For example, a customer with an SGD 1,000 booking for 5 nights is different from a customer with an SGD 1,000 booking for 2 nights. Customers whose bookings were SGD 750-1000 in total or SGD 375-500 and SGD 875-1000 per night had higher chance of not showing up.
+|Log Loss|0.00018|
